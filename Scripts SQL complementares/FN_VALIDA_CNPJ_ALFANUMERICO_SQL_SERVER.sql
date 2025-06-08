@@ -1,4 +1,4 @@
-CREATE FUNCTION dbo.removeMascaraCNPJ(@cnpj VARCHAR(20))
+CREATE OR ALTER FUNCTION dbo.removeMascaraCNPJ(@cnpj VARCHAR(20))
 RETURNS VARCHAR(14)
 AS
 BEGIN
@@ -21,8 +21,9 @@ BEGIN
     
     RETURN @result
 END
+GO
 
-CREATE FUNCTION dbo.calculaDV(@cnpjBase VARCHAR(12))
+CREATE OR ALTER FUNCTION dbo.calculaDV(@cnpjBase VARCHAR(12))
 RETURNS VARCHAR(2)
 AS
 BEGIN
@@ -80,8 +81,9 @@ BEGIN
     
     RETURN CAST(@dv1 AS VARCHAR) + CAST(@dv2 AS VARCHAR)
 END
+GO
 
-CREATE FUNCTION dbo.isValidCNPJ(@cnpj VARCHAR(20))
+CREATE OR ALTER FUNCTION dbo.isValidCNPJ(@cnpj VARCHAR(20))
 RETURNS BIT
 AS
 BEGIN
@@ -89,28 +91,15 @@ BEGIN
     DECLARE @cnpjZerado VARCHAR(14) = '00000000000000'
     
     DECLARE @cnpjSemMascara VARCHAR(14) = dbo.removeMascaraCNPJ(@cnpj)
-    IF @cnpjSemMascara IS NULL
+    IF @cnpjSemMascara IS NULL OR LEN(@cnpjSemMascara) <> 14 OR @cnpjSemMascara = REPLICATE('0', 14)
         RETURN 0
-    
-    -- Verifica tamanho (agora permitindo letras)
-    IF LEN(@cnpjSemMascara) <> 14
-        RETURN 0
-    
-    -- Verifica se é CNPJ zerado (considerando que pode ter letras)
-    IF @cnpjSemMascara = REPLICATE('0', 14)
-        RETURN 0
-    
-    -- Pega os dígitos verificadores informados (últimos 2 caracteres)
+
     DECLARE @dvInformado VARCHAR(2) = SUBSTRING(@cnpjSemMascara, 13, 2)
     
-    -- Os dígitos verificadores devem ser numéricos
     IF @dvInformado NOT LIKE '[0-9][0-9]'
         RETURN 0
     
-    -- Pega os 12 primeiros caracteres para cálculo
     DECLARE @cnpjBase VARCHAR(12) = SUBSTRING(@cnpjSemMascara, 1, 12)
-    
-    -- Calcula o DV esperado (a função calculaDV precisa ser ajustada também)
     DECLARE @dvCalculado VARCHAR(2) = dbo.calculaDV(@cnpjBase)
     
     IF @dvCalculado IS NULL
@@ -118,6 +107,12 @@ BEGIN
     
     IF @dvInformado = @dvCalculado
         RETURN 1
-    
+
     RETURN 0
 END
+GO
+
+SELECT dbo.isValidCNPJ('R1.JZX.TTK/0001-83') AS Valido
+SELECT dbo.isValidCNPJ('03.248.373/0001-74') AS Valido
+SELECT dbo.isValidCNPJ('8U.TYM.V11/0001-01') AS Valido
+GO
